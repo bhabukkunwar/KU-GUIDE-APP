@@ -8,20 +8,25 @@ package com.example.hppower.kuguideapp;
 public class MainActivity extends AppCompatActivity {
 
     Button buttonForMap;
+    ExtraFunction checknet;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        checknet  = new ExtraFunction(this,this);
 
         buttonForMap = findViewById(R.id.mapButton);
         buttonForMap.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
-                Intent i = new Intent(MainActivity.this,MapsActivity.class);
-                startActivity(i);
+                if(checknet.checkInternet("activity_mainPage")) {
+
+                    Intent i = new Intent(MainActivity.this, MapsActivity.class);
+                    startActivity(i);
+                }
 
             }
         });
