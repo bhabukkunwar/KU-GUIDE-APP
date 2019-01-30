@@ -1,6 +1,10 @@
 package com.example.hppower.kuguideapp;
 import android.Manifest;
+import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Address;
@@ -12,15 +16,22 @@ import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ZoomControls;
 
@@ -61,11 +72,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     ZoomControls zoom;
     Button satView;
     AutoCompleteTextView destination;
-    String destinationEntered;
+    String destinationEntered, blockName, infoValue;
+    int photosLayout;
     double markerLat, markerLng;
     List<LatLng> markerPoints = Arrays.asList(new LatLng[2]);
-    LatLng latLng1;
 
+    LatLng MarkerPosition;
     LatLng latLngBlock9 = new LatLng(27.619990, 85.539023);
     LatLng latLngBlock14 = new LatLng(27.617456, 85.538921);
     LatLng latLngBlock8 = new LatLng(27.619665, 85.539357);
@@ -103,34 +115,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     String KEY_GOOGLE_API = "AIzaSyBzHFV0jP-cnHGmBDT99JJzv4_VH7a4WC0";
 
     Polyline polyline;
     Boolean line = false;
     Double latitude,longitude;
+    View rootView;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate (Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             checkLocationPermission();
         }
+
+        rootView = getWindow().getDecorView().findViewById(android.R.id.content);
 
 
         mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -177,14 +178,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         ArrayAdapter<String> arrayAdapter2 = new ArrayAdapter<>(this, R.layout.autocompletelist, getResources().getStringArray(R.array.Location));
         destination = (AutoCompleteTextView) findViewById(R.id.placeAutoComplete);
         destination.setAdapter(arrayAdapter2);
-        destination.setThreshold(1);
-
-        destination.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(final View arg0) {
-                destination.showDropDown();
-            }
-        });
+        destination.setThreshold(2);
 
         destination.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View view, int position, long rowId) {
@@ -192,8 +186,289 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 destination.setText(destinationEntered);
                 destination.setSelection(destination.getText().length());
 
+                hideKeyboardFrom(getApplicationContext(),rootView);
+                showBox();
+
             }
         });
+    }
+
+    private void showBox() {
+
+        LayoutInflater layoutInflater = LayoutInflater.from(this);
+        View promptView = layoutInflater.inflate(R.layout.custom_alertbox, null);
+
+        Button getDir = (Button) promptView.findViewById(R.id.GetDirection);
+        Button showPhotos = (Button) promptView.findViewById(R.id.showPhotos);
+        TextView main_title = (TextView) promptView.findViewById(R.id.title);
+        TextView block = (TextView) promptView.findViewById(R.id.depart);
+        TextView blockValue = (TextView) promptView.findViewById(R.id.departValue);
+
+        TextView info = (TextView) promptView.findViewById(R.id.info);
+
+
+        blockName();
+
+        getDir.setText(" Get Direction ");
+        showPhotos.setText(" Show Photo ");
+        main_title.setText(destinationEntered);
+        block.setText("Info: ");
+        blockValue.setText(blockName);
+        info.setText(infoValue);
+
+
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+        builder.setCancelable(true);
+
+
+        final AlertDialog alert = builder.create();
+
+        getDir.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+
+
+                Log.e("apkflow", "alat:" + markerLat + "blng:" + markerLng);
+
+                markerPoints.set(1, MarkerPosition);
+
+                LatLng origin = (LatLng) markerPoints.get(0);
+                LatLng dest = (LatLng) markerPoints.get(1);
+
+                String url = getDirectionsUrl(origin, dest);
+
+                DownloadTask downloadTask = new DownloadTask();
+                downloadTask.execute(url);
+
+              //  marker.showInfoWindow();
+
+                alert.dismiss();
+
+            }
+        });
+
+        showPhotos.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+
+            Intent i = new Intent(MapsActivity.this,blockPhotos.class);
+            i.putExtra("blockId",destinationEntered);
+            startActivity(i);
+
+
+            }
+        });
+
+
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+        lp.copyFrom(alert.getWindow().getAttributes());
+        lp.width = WindowManager.LayoutParams.MATCH_PARENT;
+        lp.height = 1000;
+        lp.gravity = Gravity.CENTER;
+
+        alert.getWindow().setAttributes(lp);
+        alert.setView(promptView);
+        alert.show();
+    }
+
+    private void blockName() {
+
+        switch(destinationEntered){
+            case ("Block 9"):
+                blockName = "DoCSE";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619990, 85.539023);
+                break;
+
+            case ("Block 8"):
+                blockName = "DoME";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619665, 85.539357);
+                break;
+            case ("Block 7"):
+                blockName = "DoME";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619276, 85.539482);
+                break;
+            case ("Block 6"):
+                blockName = "DoME";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.618907, 85.539325);
+                break;
+            case ("Block 14"):
+                blockName = "DoME";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617456, 85.538921);
+                break;
+            case ("Canteen"):
+                blockName = "DoME";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619251, 85.538875);
+                break;
+            case ("Library"):
+                blockName = "KU Library";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.618903, 85.538622);
+                break;
+            case ("Cafe"):
+                blockName = "Cafe of KU";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.618451, 85.538325);
+                break;
+            case ("KU Girls Hostel"):
+                blockName = "KU Girls Hostel";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.618102, 85.539277);
+                break;
+            case ("KU Staff Quarter"):
+                blockName = "Staff Quarter";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617663, 85.539411);
+                break;
+            case ("Nepal Investment Bank"):
+                blockName = "Staff Quarter";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617199, 85.539229);
+                break;
+            case ("OfficeExam"):
+                blockName = "Office of Examination Controller ";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617518, 85.539015);
+                break;
+            case ("KU INT Hostel"):
+                blockName = "KU International Hostel";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617644, 85.537914);
+                break;
+            case ("KU TTC Girls Hostel"):
+                blockName = "KU TTC Girls Hostel";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617431, 85.537483);
+                break;
+            case ("KU TTC Boys Hostel"):
+                blockName = "KU TTC Boys Hostel";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617398, 85.537207);
+                break;
+            case ("KU Social Hall"):
+                blockName = "KU Social Hall";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617741, 85.536324);
+                break;
+            case ("KUFit"):
+                blockName = "KU Fitness Centre";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617420, 85.535770);
+                break;
+            case ("Warehouse"):
+                blockName = "Warehouse";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617655, 85.534948);
+                break;
+            case ("FootBall Ground"):
+                blockName = "KU Football Ground";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.618778, 85.536984);
+                break;
+            case ("BasketBall Court"):
+                blockName = "KU Basketball Court";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.618255, 85.536431);
+                break;
+            case ("KU Mess"):
+                blockName = "KU Mess";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.617988, 85.537863);
+                break;
+            case ("Multi Purpose Hall"):
+                blockName = "New Multipurpose Hall";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619399, 85.537245);
+                break;
+            case ("Swimming Pool"):
+                blockName = "Swimming Pool of KU";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619366, 85.536726);
+                break;
+            case ("workshop"):
+                blockName = "Workshop";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619695, 85.536814);
+                break;
+            case ("TTL"):
+                blockName = "TTL";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619695, 85.536814);
+                break;
+            case ("TTL2"):
+                blockName = "TTL2";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.620083, 85.537815);
+                break;
+            case ("Block10"):
+                blockName = "10";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619706, 85.538107);
+                break;
+            case ("Block11"):
+                blockName = "11";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619279, 85.538035);
+                break;
+
+            case ("Block12"):
+                blockName = "Depart of Pharmacy";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.618894, 85.538060);
+                break;
+            case ("CV Raman Auditorium"):
+                blockName = "CV Raman Auditorium";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619248, 85.538847);
+                break;
+            case ("Administration Block"):
+                blockName = "KU Administration Block";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.619492, 85.538627);
+                break;
+            case ("Fountain"):
+                blockName = "Library Fountain";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.618616, 85.538596);
+                break;
+            case ("KU Gate"):
+                blockName = "KU Entrance Gate";
+                infoValue = ".";
+                MarkerPosition = new LatLng(27.620656, 85.538378);
+                break;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        }
+
+
 
 
     }
@@ -202,7 +477,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        mMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+        mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
         mMap.getUiSettings().setZoomControlsEnabled(false);
         mMap.getUiSettings().setZoomGesturesEnabled(true);
         mMap.getUiSettings().setCompassEnabled(false);
@@ -229,8 +504,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 Log.e("apkflow", "alat:" + markerLat + "blng:" + markerLng);
 
-                latLng1 = new LatLng(markerLat, markerLng);
-                markerPoints.set(1, latLng1);
+                MarkerPosition = new LatLng(markerLat, markerLng);
+                markerPoints.set(1, MarkerPosition);
 
                 LatLng origin = (LatLng) markerPoints.get(0);
                 LatLng dest = (LatLng) markerPoints.get(1);
@@ -335,7 +610,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
         mCurrLocationMarker = mMap.addMarker(markerOptions);
         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(16));
         if (mGoogleApiClient != null) {
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, (com.google.android.gms.location.LocationListener) this);
         }
@@ -345,76 +620,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mBlock8Marker = mMap.addMarker(new MarkerOptions().position(latLngBlock8).title("Block 8").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mBlock7Marker = mMap.addMarker(new MarkerOptions().position(latLngBlock7).title("Block 7").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mBlock6Marker = mMap.addMarker(new MarkerOptions().position(latLngBlock6).title("Block 6").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mCanteen = mMap.addMarker(new MarkerOptions().position(Canteen).title("Canteen").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
+        mCanteen = mMap.addMarker(new MarkerOptions().position(Canteen).title("Canteen").icon(BitmapDescriptorFactory.fromResource(R.drawable.canteeen )));
         mLibrary = mMap.addMarker(new MarkerOptions().position(Library).title("Library").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mKUCAFE = mMap.addMarker(new MarkerOptions().position(Cafe).title("KU Cafe").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mKUGH = mMap.addMarker(new MarkerOptions().position(KUGH).title("KU Girls Hostelb").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
+        mKUCAFE = mMap.addMarker(new MarkerOptions().position(Cafe).title("KU Cafe").icon(BitmapDescriptorFactory.fromResource(R.drawable.cafe)));
+        mKUGH = mMap.addMarker(new MarkerOptions().position(KUGH).title("KU Girls Hostelb").icon(BitmapDescriptorFactory.fromResource(R.drawable.hostel)));
         mKUstaff = mMap.addMarker(new MarkerOptions().position(KUStaff).title("KU Staff Quarter").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mNIB = mMap.addMarker(new MarkerOptions().position(NIB).title("Nepal Investment Bank").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mOffice = mMap.addMarker(new MarkerOptions().position(OfficeExam).title("Office of the Controller of Examination").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mNewGH = mMap.addMarker(new MarkerOptions().position(NewGH).title("KU New Girls Hostel").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mKUINTH = mMap.addMarker(new MarkerOptions().position(KUINTH).title("KU International Hostel").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mKUTTCG = mMap.addMarker(new MarkerOptions().position(KUTTCG).title("KU TTC Girls Hostel").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mKUTTCB = mMap.addMarker(new MarkerOptions().position(KUTTCB).title("KU TTC Boys Hostel").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
+        mNewGH = mMap.addMarker(new MarkerOptions().position(NewGH).title("KU New Girls Hostel").icon(BitmapDescriptorFactory.fromResource(R.drawable.hostel)));
+        mKUINTH = mMap.addMarker(new MarkerOptions().position(KUINTH).title("KU International Hostel").icon(BitmapDescriptorFactory.fromResource(R.drawable.hostel)));
+        mKUTTCG = mMap.addMarker(new MarkerOptions().position(KUTTCG).title("KU TTC Girls Hostel").icon(BitmapDescriptorFactory.fromResource(R.drawable.hostel)));
+        mKUTTCB = mMap.addMarker(new MarkerOptions().position(KUTTCB).title("KU TTC Boys Hostel").icon(BitmapDescriptorFactory.fromResource(R.drawable.hostel)));
         mKUsocial = mMap.addMarker(new MarkerOptions().position(KUsocial).title("KU Social Hall").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mKUCenter = mMap.addMarker(new MarkerOptions().position(KUFit).title("KU Fitness Center").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mWarehouse = mMap.addMarker(new MarkerOptions().position(Warehouse).title("Warehouse").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mFootball = mMap.addMarker(new MarkerOptions().position(FootBall).title("Football Ground").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mBasketball = mMap.addMarker(new MarkerOptions().position(BasketBall).title("Basketball Court").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mMess = mMap.addMarker(new MarkerOptions().position(Mess).title("KU Mess").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
+        mFootball = mMap.addMarker(new MarkerOptions().position(FootBall).title("Football Ground").icon(BitmapDescriptorFactory.fromResource(R.drawable.football)));
+        mBasketball = mMap.addMarker(new MarkerOptions().position(BasketBall).title("Basketball Court").icon(BitmapDescriptorFactory.fromResource(R.drawable.basketball)));
+        mMess = mMap.addMarker(new MarkerOptions().position(Mess).title("KU Mess").icon(BitmapDescriptorFactory.fromResource(R.drawable.canteeen)));
         mMulti = mMap.addMarker(new MarkerOptions().position(Multi).title("KU MultiPurpose Hall").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mSwim = mMap.addMarker(new MarkerOptions().position(Swim).title("Swimming Pool").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mworkshop = mMap.addMarker(new MarkerOptions().position(workshop).title("Workshop").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mTTL = mMap.addMarker(new MarkerOptions().position(TTL).title("TTL Metal and Carpentry Workshop").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mTTL2 = mMap.addMarker(new MarkerOptions().position(TTL2).title("TTL Metal and Carpentry Workshop").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
+        mSwim = mMap.addMarker(new MarkerOptions().position(Swim).title("Swimming Pool").icon(BitmapDescriptorFactory.fromResource(R.drawable.swimming)));
+        mworkshop = mMap.addMarker(new MarkerOptions().position(workshop).title("Workshop").icon(BitmapDescriptorFactory.fromResource(R.drawable.workshop)));
+        mTTL = mMap.addMarker(new MarkerOptions().position(TTL).title("TTL Metal and Carpentry Workshop").icon(BitmapDescriptorFactory.fromResource(R.drawable.workshop)));
+        mTTL2 = mMap.addMarker(new MarkerOptions().position(TTL2).title("TTL Metal and Carpentry Workshop").icon(BitmapDescriptorFactory.fromResource(R.drawable.workshop)));
         mBlock10 = mMap.addMarker(new MarkerOptions().position(Block10).title("Block 10").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mBlock11 = mMap.addMarker(new MarkerOptions().position(Block11).title("Block 11").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mBlock12 = mMap.addMarker(new MarkerOptions().position(Block12).title("Block 12").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mCV = mMap.addMarker(new MarkerOptions().position(CV).title("CV Raman Auditorium").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mAdmin = mMap.addMarker(new MarkerOptions().position(Admin).title("Block 12").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mFountain = mMap.addMarker(new MarkerOptions().position(Fountain).title("Block 12").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-        mKUGate = mMap.addMarker(new MarkerOptions().position(KUGate).title("Block 12").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        mAdmin = mMap.addMarker(new MarkerOptions().position(Admin).title("Administrator Block").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
+        mFountain = mMap.addMarker(new MarkerOptions().position(Fountain).title("Fountain").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
+        mKUGate = mMap.addMarker(new MarkerOptions().position(KUGate).title("KU Gate").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
 
 
 
@@ -590,10 +824,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 polyline =  mMap.addPolyline(lineOptions);
             }
             else{
-                Toast.makeText(MapsActivity.this, "Directions not found !!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MapsActivity.this, "Directions not found  Google Quota full!!", Toast.LENGTH_SHORT).show();
 
             }
         }
+    }
+
+    public void hideKeyboardFrom(Context context, View view) {
+        InputMethodManager imm = (InputMethodManager) context.getSystemService(Activity.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
     }
 }
 
