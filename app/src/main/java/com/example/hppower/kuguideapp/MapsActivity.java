@@ -65,7 +65,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
     GoogleApiClient mGoogleApiClient;
     Location mLastLocation;
-    Marker mCurrLocationMarker, mBlock9Marker,mBlock14Marker,mBlock8Marker,mBlock7Marker,mBlock6Marker,mCanteen, mLibrary,mKUCAFE,mKUGH,mKUstaff,mNIB,mOffice,mNewGH,mKUINTH,mKUTTCG,mKUTTCB,mKUsocial,mKUCenter,mWarehouse,mFootball,mBasketball,mMess,mMulti,mSwim,mworkshop,mTTL,mTTL2,mBlock10,mBlock11,mBlock12,mCV,mAdmin,mFountain,mKUGate;
+    Marker mCurrLocationMarker, mBlock9Marker,mBlock14Marker,mBlock8Marker,mBlock7Marker,mBlock6Marker,mCanteen, mLibrary,mKUCAFE,mKUGH,mKUstaff,mNIB,mOffice,mNewGH,mKUINTH,mKUTTCG,mKUTTCB,mKUsocial,mKUCenter,mWarehouse,mFootball,mBasketball,mMess,mMulti,mSwim,mworkshop,mTTL,mTTL2,mBlock10,mBlock11,mBlock12,mCV,mAdmin,mFountain,mKUGate,mKUBH;
     LocationRequest mLocationRequest;
     GoogleMap mMap;
     SupportMapFragment mapFragment;
@@ -112,6 +112,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     LatLng Admin = new LatLng(27.619492, 85.538627);
     LatLng Fountain = new LatLng(27.618616, 85.538596);
     LatLng KUGate = new LatLng(27.620656, 85.538378);
+    LatLng KUBH = new LatLng(27.620656, 85.538378);
 
 
 
@@ -649,6 +650,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mAdmin = mMap.addMarker(new MarkerOptions().position(Admin).title("Administrator Block").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mFountain = mMap.addMarker(new MarkerOptions().position(Fountain).title("Fountain").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
         mKUGate = mMap.addMarker(new MarkerOptions().position(KUGate).title("KU Gate").icon(BitmapDescriptorFactory.fromResource(R.drawable.blocks)));
+        mKUBH = mMap.addMarker(new MarkerOptions().position(KUBH).title("KU Boys Hostel").icon(BitmapDescriptorFactory.fromResource(R.drawable.hostel)));
 
 
 
